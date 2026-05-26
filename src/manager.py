@@ -1,9 +1,20 @@
+"""Apartment management module."""
 from datetime import datetime
+from typing import List
 
-from src.models import Apartment, Bill, Parameters, Tenant, ApartmentEvent, TenantBlacklistEntry, TenantSettlement, Transfer, ApartmentSettlement
-from typing import List, Tuple
-
+from src.models import (
+    Apartment,
+    ApartmentEvent,
+    ApartmentSettlement,
+    Bill,
+    Parameters,
+    Tenant,
+    TenantBlacklistEntry,
+    TenantSettlement,
+    Transfer,
+)
 class Manager:
+    """Main apartment manager service."""
     def __init__(self, parameters: Parameters):
         self.parameters = parameters 
 
@@ -17,6 +28,7 @@ class Manager:
         self.load_data()
 
     def load_data(self):
+        """Load data from JSON files."""
         self.apartments = Apartment.from_json_file(self.parameters.apartments_json_path)
         self.tenants = Tenant.from_json_file(self.parameters.tenants_json_path)
         self.transfers = Transfer.from_json_file(self.parameters.transfers_json_path)
@@ -99,27 +111,28 @@ class Manager:
 
         for tenant_settlement in tenant_settlements:
             tenant_transfers = [transfer for transfer in self.transfers if self.tenants[transfer.tenant].name == tenant_settlement.tenant and transfer.settlement_year == year and transfer.settlement_month == month]
-            total_paid = sum([transfer.amount_pln for transfer in tenant_transfers if transfer.settlement_year == year and transfer.settlement_month == month])
+            total_paid = sum(transfer.amount_pln for transfer in tenant_transfers if transfer.settlement_year == year and transfer.settlement_month == month)
             if total_paid < tenant_settlement.total_due_pln:
                 output.append(tenant_settlement.tenant)
         return output
     
     def calculate_tax(self, year: int, month: int, tax_rate: float) -> float:
-        total_income = sum([transfer.amount_pln for transfer in self.transfers if transfer.settlement_year == year and transfer.settlement_month == month])
+        total_income = sum(transfer.amount_pln for transfer in self.transfers if transfer.settlement_year == year and transfer.settlement_month == month)
         return round(total_income * tax_rate, 0)
     
     def check_deposits(self) -> float:
         total_deposits = 0.0
         total_due = 0.0
         for tenant_key, tenant in self.tenants.items():
-            total_deposits += sum([transfer.amount_pln for transfer in self.transfers if self.tenants[transfer.tenant].name == tenant.name and transfer.type == 'deposit'])
+            total_deposits += sum(transfer.amount_pln for transfer in self.transfers if self.tenants[transfer.tenant].name == tenant.name and transfer.type == 'deposit')
             total_due += tenant.deposit_pln
         
         return total_deposits - total_due
     
     def get_annual_balance(self, year: int) -> float:
-        total_income = sum([transfer.amount_pln for transfer in self.transfers if transfer.settlement_year == year])
-        total_due = sum([bill.amount_pln for bill in self.bills if bill.settlement_year == year])
+        """Calculate annual balance."""
+        total_income = sum(transfer.amount_pln for transfer in self.transfers if transfer.settlement_year == year)
+        total_due = sum(bill.amount_pln for bill in self.bills if bill.settlement_year == year)
         return total_income - total_due
     
     def has_any_bills(self, apartment_key: str, year: int, month: int) -> bool:
@@ -127,7 +140,7 @@ class Manager:
             raise ValueError("Month must be between 1 and 12")
         if apartment_key not in self.apartments:
             raise ValueError("Apartment key does not exist")
-        return any([bill for bill in self.bills if bill.apartment == apartment_key and bill.settlement_year == year and bill.settlement_month == month])
+        return any(bill for bill in self.bills if bill.apartment == apartment_key and bill.settlement_year == year and bill.settlement_month == month)
     
     def check_transfers_amount_range(self) -> bool:
         for transfer in self.transfers:
@@ -136,7 +149,7 @@ class Manager:
         return True
     
     def check_tenant_blacklist(self, tenant_name: str) -> bool:
-        return any([entry for entry in self.tenants_blacklist if entry.tenant == tenant_name])
+        return any(entry for entry in self.tenants_blacklist if entry.tenant == tenant_name)
     
     def check_transfers_tenant(self) -> bool:
         for transfer in self.transfers:

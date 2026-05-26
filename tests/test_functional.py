@@ -145,3 +145,85 @@ def test_transfer_valid_with_tenant_agreement():
     is_valid = manager.check_transfers_tenant()
     assert is_valid == False
 
+import pytest
+
+
+def test_events_report():
+    manager = Manager(Parameters())
+
+    manager.apartment_events = [
+        type("Event", (), {
+            "apartment": "apart-polanka",
+            "solved": False
+        })()
+    ]
+
+    result = manager.generate_apartment_events_report("apart-polanka")
+
+    assert len(result) == 1
+
+
+def test_events_report_invalid_apartment():
+    manager = Manager(Parameters())
+
+    with pytest.raises(ValueError):
+        manager.generate_apartment_events_report("BAD_KEY")
+
+
+def test_load_additional_data(monkeypatch):
+    manager = Manager(Parameters())
+
+    monkeypatch.setattr(
+        "src.manager.ApartmentEvent.from_json_file",
+        lambda _: ["ok"]
+    )
+
+    manager.load_additional_data()
+
+    assert manager.apartment_events == ["ok"]
+
+
+def test_get_settlement_none():
+    manager = Manager(Parameters())
+
+    assert manager.get_settlement("BAD_KEY", 2024, 1) is None
+
+
+def test_create_tenants_settlements_invalid():
+    manager = Manager(Parameters())
+
+    settlement = type("Settlement", (), {
+        "month": 1,
+        "apartment": "BAD_KEY"
+    })()
+
+    assert manager.create_tenants_settlements(settlement) is None
+
+
+def test_create_tenants_settlements_invalid_month():
+    manager = Manager(Parameters())
+
+    settlement = type("Settlement", (), {
+        "month": 13,
+        "apartment": "X"
+    })()
+
+    with pytest.raises(ValueError):
+        manager.create_tenants_settlements(settlement)
+
+
+def test_get_debtors_invalid_month():
+    manager = Manager(Parameters())
+
+    with pytest.raises(ValueError):
+        manager.get_debtors("apart-polanka", 2024, 13)
+
+
+def test_has_any_bills_exceptions():
+    manager = Manager(Parameters())
+
+    with pytest.raises(ValueError):
+        manager.has_any_bills("apart-polanka", 2024, 13)
+
+    with pytest.raises(ValueError):
+        manager.has_any_bills("BAD_KEY", 2024, 1)
